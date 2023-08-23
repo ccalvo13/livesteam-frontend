@@ -1,47 +1,36 @@
 <template>
   <div id="app">
-    <div class="bg-black-50">
-      <img alt="J Comp Meet Logo" src="./assets/default-monochrome-white.svg" class="object-scale-down h-48 w-96">
-    </div>
+   
     <Adsense
       data-ad-client="ca-pub-7023023584987784"
-      data-ad-slot="5070366491">
+      data-ad-slot="5070366491" style="height: 0;">
     </Adsense>
-
-    <div class="flex mb-4 mt-4 ml-4 mr-4 pb-4">
-        <div class="w-full content-center h-12">
-          <form class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-            <div class="mb-4">
+     <div>
+        <div>
+          <form>
+            <!-- <div class="mb-4">
               <label class="block text-gray-700 text-sm font-bold mb-2" for="room-input">
                 Room ID
               </label>
               <input v-model="roomId" placeholder="Enter room ID" id="room-input" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"/>
-            </div>
-          <div class="flex items-center justify-between">
-            <button type="button" @click="copyClipboard" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Share Meeting</button>
-            <button type="button" id="join-btn" @click="toggleRoom" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">{{hasJoined ? 'Leave Room' : 'Join Room'}}</button>
-            <button type="button" id="screen-share-btn" @click="screenShare" v-if="hasJoined" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Screen Share</button>
-
-            <button type="button" @click="record" v-if="hasJoined" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Record</button>
+            </div> -->
+        
+          <vue-webrtc id="call-canvas" :roomId="roomId" ref="webrtc" v-on:share-started="shareStarted"  class="w-full video-webrtc" v-on:share-stopped="leftRoom" v-on:left-room="leftRoom" v-on:joined-room="joinedRoom" width="100%"/>
+          <div class="video-webrtc-controls" v-if="hasJoined">
+            <!-- <button type="button" @click="copyClipboard" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Share Meeting</button> -->
+            
+            <v-btn @click="onHandleVideoOn" class="mx-2 bg-primary" size="x-large"><v-icon>{{videoOn ?  'mdi-video-outline': 'mdi-video-off-outline' }} </v-icon></v-btn>
+            <v-btn @click="onHandleMicOn" class="mx-2 bg-primary" size="x-large"><v-icon>{{micOn ?  'mdi-microphone': 'mdi-microphone-off' }} </v-icon></v-btn>
+            <!-- <v-btn @click="screenShare" class="mx-2" size="x-large">Screen Share</v-btn> -->
+            <v-btn @click="toggleRoom" class="mx-2 bg-red" size="x-large" ><v-icon>mdi-phone-hangup</v-icon></v-btn>
           </div>
-          <vue-webrtc id="call-canvas" :roomId="roomId" ref="webrtc" v-on:share-started="shareStarted"  class="w-full" v-on:share-stopped="leftRoom" v-on:left-room="leftRoom" v-on:joined-room="joinedRoom" width="100%"/>
-          <p class="content-center">
-            J Comp Meet is a free open source WebRTC meeting application written in Vue.js. Simply enter
-            a meeting room ID and connect to anyone else in that room! You can even share your screen
-            if you are on desktop! Future functionality will include:
-            <ul>
-              <li> Record meeting </li>
-              <li> Text chat </li>
-              <li> Send files </li>
-              <li> And more! </li>
-            </ul>
-          </p>
         </form>
       </div>
     </div>
 
 
   </div>
+
 </template>
 
 <script>
@@ -51,6 +40,8 @@ export default {
     return {
       roomId: 'roomId',
       hasJoined: false,
+      videoOn: true,
+      micOn: true,
       mediaRecorder: {},
       chunks: [],
       userStream: {}
@@ -67,11 +58,11 @@ export default {
     onStop () {
       var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
       this.chunks = [];
-      const file = new File ([blob], 'meeting.webm', { 'type' : 'video/webm' })
+      const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
       var a = document.createElement("a"),
                 url = URL.createObjectURL(file);
         a.href = url;
-        a.download = 'meeting.webm';
+        a.download = `${this.roomId}.webm`;
         document.body.appendChild(a);
         a.click()
     },
@@ -80,6 +71,14 @@ export default {
     },
     record () {
       this.mediaRecorder.start()
+    },
+    onHandleVideoOn () {
+      this.videoOn = !this.videoOn;
+    },
+    onHandleMicOn () {
+      this.micOn = !this.micOn;
+      var audio = document.createElement("call-canvas");
+      audio.muted = this.micOn;
     },
     async toggleRoom () {
       try {
@@ -91,10 +90,10 @@ export default {
           await this.$refs.webrtc.join()
           this.userStream = this.$refs.webrtc.videoList[0].stream
           this.mediaRecorder = new MediaRecorder(this.userStream)
+          this.mediaRecorder.start()
           this.mediaRecorder.ondataavailable = e => this.pushData(e)
           this.mediaRecorder.onstop = () => this.onStop()
           this.hasJoined = true
-
         }
       } catch (e) {
         alert(e)
@@ -131,14 +130,16 @@ export default {
       console.log(streamId)
     },
     async copyClipboard () {
-      await navigator.clipboard.writeText(`https://meet.jcompsolu.com/#${this.roomId}`)
+      const baseUrl = window.location.origin
+      await navigator.clipboard.writeText(`${baseUrl}/#${this.roomId}`)
       alert('Link copied to clipboard!')
     },
     async share () {
+      const baseUrl = window.location.origin
     const shareData = {
-        title: 'J Comp Meet',
+        title: 'Vere-ai',
         text: 'Join my meeting!',
-        url: `https://meet.jcompsolu.com/#${this.roomId}`
+        url: `${baseUrl}/#${this.roomId}`
       }
       try {
       await navigator.share(shareData)
@@ -162,14 +163,36 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+}
+
+.v-btn>.v-btn__content .v-icon {
+    font-size: 35px;
 }
 #join-btn {
   margin: 4px 2px;
 }
-body {
-  background-image: linear-gradient(to bottom right, #E9007F, #FEA134);
+.v-btn:not(.v-btn--round).v-size--default {
+    height: 60px !important;
+}
+.video-webrtc-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 60px;
+    margin: auto;
+}
+
+.video-webrtc .video-item, .video-webrtc .video-item video {
+  width: 100vw;
+  height: 100vh;
+}
+.bg-red {
+  background-color: red !important;
+  color: #fff !important;
+}
+.bg-primary {
+  background-color: #1A1A1A !important;
+  color: #fff !important;
 }
 img {
   height: 80px;
