@@ -74,11 +74,20 @@ export default {
     },
     onHandleVideoOn () {
       this.videoOn = !this.videoOn;
+      this.userStream = this.$refs.webrtc.videoList[0].stream
+      this.userStream.video = this.videoOn
+      this.userStream.getVideoTracks()[0].enabled = this.videoOn;
+       
+      console.log('this.userStream: ', this.userStream);
+
     },
     onHandleMicOn () {
       this.micOn = !this.micOn;
-      var audio = document.createElement("call-canvas");
-      audio.muted = this.micOn;
+      this.userStream = this.$refs.webrtc.videoList[0].stream
+      this.userStream.audio = this.micOn
+      this.userStream.getAudioTracks()[0].enabled = this.micOn;
+      console.log('this.userStream: ', this.userStream);
+
     },
     async toggleRoom () {
       try {
@@ -181,13 +190,34 @@ export default {
     bottom: 60px;
     margin: auto;
 }
+::-webkit-media-controls {
+    display: none;
+}
+.video-item:nth-child(2), .video-item:nth-child(2)> video {
+    position: absolute;
+    border-radius: 20px;
+}
+.video-item:nth-child(2) {
+    width: 40% !important;
+    height: 30% !important;
+    max-width: 500px;
+    max-height: 340px;
+    top: 15px;
+    right: 47px;
+}
+.video-item:nth-child(2)> video {
+    width: 100% !important;
+    height: 100% !important;
+}
 
 .video-webrtc .video-item, .video-webrtc .video-item video {
   width: 100vw;
   height: 100vh;
+  background-size: cover;
+  object-fit: cover;
 }
 .bg-red {
-  background-color: red !important;
+  background-color: #E74C3C !important;
   color: #fff !important;
 }
 .bg-primary {
