@@ -33,7 +33,8 @@
 
 </template>
 
-<script>
+<script lang="ts">
+import axios from 'axios';
 export default {
   name: 'App',
   data () {
@@ -55,16 +56,24 @@ export default {
     }
   },
   methods: {
-    onStop () {
+    async onStop () {
       var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
       this.chunks = [];
       const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
-      var a = document.createElement("a"),
-                url = URL.createObjectURL(file);
-        a.href = url;
-        a.download = `${this.roomId}.webm`;
-        document.body.appendChild(a);
-        a.click()
+        // var a = document.createElement("a"),
+        //           url = URL.createObjectURL(file);
+        // a.href = url;
+        // a.download = `${this.roomId}.webm`;
+        // document.body.appendChild(a);
+        // a.click()
+        console.log('data 1: ', file);
+        let formdata = new FormData();
+        formdata.append('fileName', `${this.roomId}`)
+        formdata.append('file', file)
+
+        const { data } = await axios.post( 'http://localhost:3000/files', formdata);
+        console.log('data: ', data, formdata);
+
     },
     pushData (e) {
       this.chunks.push(e.data);
