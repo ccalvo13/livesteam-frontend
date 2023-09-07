@@ -124,14 +124,14 @@ export default {
       }, 1000)
     },
     startListening() {
-      const streaming = this.$refs.webrtc.videoList[0].stream;
-      console.log('stream ing: ', streaming);
+      // const streaming = this.$refs.webrtc.videoList[0].stream;
+      // console.log('stream ing: ', streaming);
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then((stream) => {
-          this.stream = stream;
-          console.log('stream: ', this.stream, streaming);
+          // this.stream = stream;
+          // console.log('stream: ', this.stream, streaming);
 
-          this.mediaStreamSource = this.audioContext.createMediaStreamSource(streaming);
+          this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
           this.analyser = this.audioContext.createAnalyser();
           this.analyser.fftSize = 32;
           this.mediaStreamSource.connect(this.analyser);
