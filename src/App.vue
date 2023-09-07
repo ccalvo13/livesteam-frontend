@@ -35,20 +35,30 @@
 
 <script lang="ts">
 import axios from 'axios';
+import { io } from 'socket.io-client';
+import { ref } from 'vue';
 export default {
   name: 'App',
   data () {
     return {
+      el: ref(null),
       roomId: 'roomId',
       hasJoined: false,
       videoOn: true,
       micOn: true,
       mediaRecorder: {},
       chunks: [],
-      userStream: {}
+      userStream: {},
+      socket: io('https://livestream-backend-ng53ixt7xq-as.a.run.app'),
+      audioContext: null,
+      videoContainer: null,
+      stream: null,
     }
   },
   mounted () {
+    this.audioContext = new (window.AudioContext)();
+   
+    setTimeout( this.startListening(), 1000)
     const hash =  window.location.hash
     if(hash != '') {
       this.roomId = hash.substring(1)
@@ -71,7 +81,7 @@ export default {
         formdata.append('fileName', `${this.roomId}`)
         formdata.append('file', file)
 
-        const { data } = await axios.post( 'http://localhost:3000/files', formdata);
+        const { data } = await axios.post( 'https://livestream-backend-ng53ixt7xq-as.a.run.app/files', formdata);
         console.log('data: ', data, formdata);
 
     },
@@ -87,25 +97,99 @@ export default {
       this.userStream.video = this.videoOn
       this.userStream.getVideoTracks()[0].enabled = this.videoOn;
        
-      console.log('this.userStream: ', this.userStream);
 
     },
     onHandleMicOn () {
       this.micOn = !this.micOn;
+      console.log('this.micOn: ', this.micOn);
       this.userStream = this.$refs.webrtc.videoList[0].stream
       this.userStream.audio = this.micOn
       this.userStream.getAudioTracks()[0].enabled = this.micOn;
-      console.log('this.userStream: ', this.userStream);
+      if(this.micOn){
+        this.startListening();
+      } else {
+        this.stopListening();
+      }
+    },
+    stopListening() {
+      if (this.mediaStreamSource) {
+          this.mediaStreamSource.disconnect();
+          this.mediaStreamSource = null;
+          this.analyser = null;
+          this.isListening = false;
+      }
+      setTimeout(function(){
+          this.videoContainer  = document.querySelector('.video-item video');
+          this.videoContainer.style.border =  'none';
+      }, 1000)
+    },
+    startListening() {
+      const streaming = this.$refs.webrtc.videoList[0].stream;
+      console.log('stream ing: ', streaming);
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          this.stream = stream;
+          console.log('stream: ', this.stream, streaming);
 
+          this.mediaStreamSource = this.audioContext.createMediaStreamSource(streaming);
+          this.analyser = this.audioContext.createAnalyser();
+          this.analyser.fftSize = 32;
+          this.mediaStreamSource.connect(this.analyser);
+          this.isListening = true;
+          this.checkTalking();
+        })
+        .catch((error) => {
+          console.error('Error accessing microphone:', error);
+        });
+    },
+    checkTalking() {
+      const bufferLength = this.analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const check = () => {
+        if (!this.isListening) {
+          return;
+        }
+
+        this.analyser.getByteFrequencyData(dataArray);
+
+        // Calculate the average volume
+        const volume = dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
+
+        // Adjust the threshold as per your requirement
+        const threshold = 100;
+        setTimeout(function(){
+           console.log('stream ---: ', this.stream);
+          this.videoContainer  = document.querySelector('.video-item video');
+          
+           if (volume > threshold && this.videoContainer) {
+            
+              this.videoContainer.style.border =  'thick solid #FF6B35';
+              console.log('User is talking', this.analyser);
+            } else {
+              if(this.videoContainer){
+                this.videoContainer.style.border =  'none';
+              }
+              console.log('User is not talking', this.analyser);
+            }
+        }, 1000)
+       
+
+        requestAnimationFrame(check);
+      };
+
+      check();
     },
     async toggleRoom () {
       try {
         if(this.hasJoined) {
           this.$refs.webrtc.leave()
           this.hasJoined = false
+          this.stopListening();
           this.mediaRecorder.stop()
         } else {
           await this.$refs.webrtc.join()
+          this.socket.emit('join', { sessionId: this.roomId });
           this.userStream = this.$refs.webrtc.videoList[0].stream
           this.mediaRecorder = new MediaRecorder(this.userStream)
           this.mediaRecorder.start()
