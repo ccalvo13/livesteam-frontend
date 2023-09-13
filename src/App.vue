@@ -70,7 +70,9 @@ export default {
   },
   created(){
     console.log('created isTalking: ');
-    
+    socket.on('talking', ({ sessionId, isTalking }) => {
+      console.log('isTalking: ', isTalking, sessionId);
+    });
   },
   methods: {
     async onStop () {
@@ -170,8 +172,8 @@ export default {
             } else {
               if(this.videoContainer){
                 this.videoContainer.style.border =  'none';
-                socket.emit('talking', { isTalking: false });
               }
+              socket.emit('talking', { isTalking: false });
               // console.log('User is not talking', this.analyser);
             }
         }, 1000)
