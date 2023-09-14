@@ -14,8 +14,9 @@
               </label>
               <input v-model="roomId" placeholder="Enter room ID" id="room-input" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"/>
             </div> -->
-        
+        <div class="video-container"> 
           <vue-webrtc id="call-canvas" :roomId="roomId" ref="webrtc" v-on:share-started="shareStarted"  class="w-full video-webrtc" v-on:share-stopped="leftRoom" v-on:left-room="leftRoom" v-on:joined-room="joinedRoom" width="100%"/>
+        </div>
           <div class="video-webrtc-controls" v-if="hasJoined">
             <!-- <button type="button" @click="copyClipboard" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Share Meeting</button> -->
             
@@ -58,40 +59,47 @@ export default {
     }
   },
   mounted () {
-    this.audioContext = new (window.AudioContext)();
+    socket.on('talking', ({ sessionId, isTalking }) => {
+      console.log('isTalking: ', isTalking, sessionId);
+        this.videoContainer  = document.querySelector(`.video-item video[id='${sessionId}']`);
+        
+        // styling for video border: when user is talking
+        if (isTalking) {
+          this.videoContainer.style.border =  'thick solid #FF6B35';
+        } else {
+          if(this.videoContainer){
+            this.videoContainer.style.border =  'none';
+          }
+        }
+    });
+    
+    
     const hash =  window.location.hash
     if(hash != '') {
       this.roomId = hash.substring(1)
       this.toggleRoom()
-      socket.on('talking', ({ sessionId, isTalking }) => {
-        console.log('isTalking: ', isTalking, sessionId);
-      });
     }
   },
   created(){
+    this.audioContext = new (window.AudioContext)();
     console.log('created isTalking: ');
-    socket.on('talking', ({ sessionId, isTalking }) => {
-      console.log('isTalking: ', isTalking, sessionId);
-    });
+    // socket.on('talking', ({ sessionId, isTalking }) => {
+    //   console.log('isTalking: ', isTalking, sessionId);
+    // });
   },
   methods: {
     async onStop () {
       var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
       this.chunks = [];
       const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
-        // var a = document.createElement("a"),
-        // url = URL.createObjectURL(file);
-        // a.href = url;
-        // a.download = `${this.roomId}.webm`;
-        // document.body.appendChild(a);
-        // a.click()
-        console.log('data 1: ', file);
-        let formdata = new FormData();
-        formdata.append('fileName', `${this.roomId}`)
-        formdata.append('file', file)
+    
+      console.log('data 1: ', file);
+      let formdata = new FormData();
+      formdata.append('fileName', `${this.roomId}`)
+      formdata.append('file', file)
 
-        const { data } = await axios.post( 'https://livestream-backend-ng53ixt7xq-as.a.run.app/files', formdata);
-        console.log('data: ', data, formdata);
+      const { data } = await axios.post( 'https://livestream-backend-ng53ixt7xq-as.a.run.app/files', formdata);
+      console.log('data: ', data, formdata);
 
     },
     pushData (e) {
@@ -114,12 +122,12 @@ export default {
       this.userStream.audio = this.micOn
       this.userStream.getAudioTracks()[0].enabled = this.micOn;
       if(this.micOn){
-        this.startListening();
+        this.startListening(this.userStream.id);
       } else {
-        this.stopListening();
+        this.stopListening(this.userStream.id);
       }
     },
-    stopListening() {
+    stopListening(streamingId) {
       if (this.mediaStreamSource) {
           this.mediaStreamSource.disconnect();
           this.mediaStreamSource = null;
@@ -127,11 +135,11 @@ export default {
           this.isListening = false;
       }
       setTimeout(function(){
-          this.videoContainer  = document.querySelector('.video-item video');
+          this.videoContainer  = document.querySelector(`.video-item video[id='${streamingId}']`);
           this.videoContainer.style.border =  'none';
       }, 1000)
     },
-    startListening() {
+    startListening(streamingId) {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then((stream) => {
           this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
@@ -139,14 +147,14 @@ export default {
           this.analyser.fftSize = 32;
           this.mediaStreamSource.connect(this.analyser);
           this.isListening = true;
-          this.checkTalking();
+          this.checkTalking(streamingId);
         })
         .catch((error) => {
           console.error('Error accessing microphone:', error);
         });
 
     },
-    checkTalking() {
+    checkTalking(streamingId) {
       const bufferLength = this.analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
@@ -163,17 +171,18 @@ export default {
         // Adjust the threshold as per your requirement
         const threshold = 100;
         setTimeout(function(){
-          this.videoContainer  = document.querySelector('.video-item video');
+          this.videoContainer  = document.querySelector(`.video-item video[id='${streamingId}']`);
           
            if (volume > threshold && this.videoContainer) {
               this.videoContainer.style.border =  'thick solid #FF6B35';
               // console.log('User is talking', this.analyser);
-              socket.emit('talking', { isTalking: true });
+              socket.emit('talking', { isTalking: true, sessionId: streamingId });
+              console.log('streamingId: ', streamingId);
             } else {
               if(this.videoContainer){
                 this.videoContainer.style.border =  'none';
               }
-              socket.emit('talking', { isTalking: false });
+              socket.emit('talking', { isTalking: false, sessionId: streamingId });
               // console.log('User is not talking', this.analyser);
             }
         }, 1000)
@@ -198,7 +207,8 @@ export default {
           
           socket.emit('join', { roomId: this.roomId, sessionId: this.userStream.id });
           console.log('this.$refs.webrtc: ', this.$refs.webrtc);
-          this.startListening();
+          this.startListening(this.userStream.id);
+          this.getUserList();
           this.mediaRecorder = new MediaRecorder(this.userStream)
           this.mediaRecorder.start()
           this.mediaRecorder.ondataavailable = e => this.pushData(e)
@@ -209,6 +219,10 @@ export default {
         alert(e)
       }
 
+    },
+    async getUserList(){
+      const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}`);
+      console.log('getUserList: ', data);
     },
     screenShare () {
       try {
@@ -294,28 +308,38 @@ export default {
 ::-webkit-media-controls {
     display: none;
 }
-.video-item:nth-child(2), .video-item:nth-child(2)> video {
-    position: absolute;
-    border-radius: 20px;
-}
-.video-item:nth-child(2) {
-    width: 40% !important;
-    height: 30% !important;
-    max-width: 500px;
-    max-height: 340px;
-    top: 15px;
-    right: 47px;
-}
-.video-item:nth-child(2)> video {
-    width: 100% !important;
-    height: 100% !important;
-}
 
 .video-webrtc .video-item, .video-webrtc .video-item video {
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
   background-size: cover;
   object-fit: cover;
+}
+#call-canvas {
+  display: grid;
+  justify-content: end;
+}
+.video-container {
+  display: flex;
+  justify-content: end;
+}
+.video-item:nth-child(1) {
+  order: 1;
+  flex: 1;
+  width: 100%;
+  position: absolute;
+}
+.video-item:not(:nth-child(1)) {
+  width: 400px;
+  height: 280px;
+  border-radius: 20px;
+  top: 15px;
+  position: relative;
+  margin-bottom: 15px;
+  right: 15px;
+  flex: 1;
+  order: 1;
 }
 .bg-red {
   background-color: #E74C3C !important;
