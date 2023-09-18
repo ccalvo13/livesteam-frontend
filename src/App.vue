@@ -59,12 +59,29 @@ export default {
     }
   },
   mounted () {
+    // socket.on('usersList', ({ users }) => {
+    //   console.log('usersList: ', users);
+    //   const newNode = document.createElement("p");
+      
+    //   newNode.setAttribute('class', 'user-video');
+    //   const textNode = document.createTextNode(users);
+    //   newNode.appendChild(textNode);
+
+    //   const list = document.getElementById(users);
+    //   list.after(newNode, list.children[0]);
+    // });
+
+    // socket.on('join', ({ sessionId }) => {
+    //   console.log('This user has join the meeting room:  ', sessionId);
+    //    console.log('usersList: ', sessionId);
+    // });
+
     socket.on('talking', ({ sessionId, isTalking }) => {
       console.log('isTalking: ', isTalking, sessionId);
         this.videoContainer  = document.querySelector(`.video-item video[id='${sessionId}']`);
         
         // styling for video border: when user is talking
-        if (isTalking) {
+        if (isTalking && this.videoContainer) {
           this.videoContainer.style.border =  'thick solid #FF6B35';
         } else {
           if(this.videoContainer){
@@ -89,17 +106,17 @@ export default {
   },
   methods: {
     async onStop () {
-      var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
-      this.chunks = [];
-      const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
+      // var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
+      // this.chunks = [];
+      // const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
     
-      console.log('data 1: ', file);
-      let formdata = new FormData();
-      formdata.append('fileName', `${this.roomId}`)
-      formdata.append('file', file)
+      // console.log('data 1: ', file);
+      // let formdata = new FormData();
+      // formdata.append('fileName', `${this.roomId}`)
+      // formdata.append('file', file)
 
-      const { data } = await axios.post( 'https://livestream-backend-ng53ixt7xq-as.a.run.app/files', formdata);
-      console.log('data: ', data, formdata);
+      // const { data } = await axios.post( 'https://livestream-backend-ng53ixt7xq-as.a.run.app/files', formdata);
+      // console.log('data: ', data, formdata);
 
     },
     pushData (e) {
@@ -136,7 +153,9 @@ export default {
       }
       setTimeout(function(){
           this.videoContainer  = document.querySelector(`.video-item video[id='${streamingId}']`);
-          this.videoContainer.style.border =  'none';
+          if(this.videoContainer){
+            this.videoContainer.style.border =  'none';
+          }
       }, 1000)
     },
     startListening(streamingId) {
@@ -175,7 +194,6 @@ export default {
           
            if (volume > threshold && this.videoContainer) {
               this.videoContainer.style.border =  'thick solid #FF6B35';
-              // console.log('User is talking', this.analyser);
               socket.emit('talking', { isTalking: true, sessionId: streamingId });
               console.log('streamingId: ', streamingId);
             } else {
@@ -183,7 +201,6 @@ export default {
                 this.videoContainer.style.border =  'none';
               }
               socket.emit('talking', { isTalking: false, sessionId: streamingId });
-              // console.log('User is not talking', this.analyser);
             }
         }, 1000)
        
@@ -199,17 +216,28 @@ export default {
           this.$refs.webrtc.leave()
           this.hasJoined = false
           this.stopListening();
-          this.mediaRecorder.stop()
+          this.mediaRecorder.stop();
+          await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app//users/list/${this.roomId}/${this.userStream.id}`);
+          socket.emit('usersList', { roomId: this.roomId });
+          
+          // TODO: add link to redirect after end call
         } else {
           await this.$refs.webrtc.join()
           this.userStream = this.$refs.webrtc.videoList[0].stream
-          console.log('join: ', this.roomId, this.userStream.id );
-          
+          socket.emit('usersList', { roomId: this.roomId });
           socket.emit('join', { roomId: this.roomId, sessionId: this.userStream.id });
-          console.log('this.$refs.webrtc: ', this.$refs.webrtc);
           this.startListening(this.userStream.id);
           this.getUserList();
           this.mediaRecorder = new MediaRecorder(this.userStream)
+          
+          const newNode = document.createElement("p");
+          newNode.setAttribute('class', 'user-video');
+          const textNode = document.createTextNode(this.userStream.id);
+          newNode.appendChild(textNode);
+
+          const list = document.getElementById(this.userStream.id);
+          list.after(newNode, list.children[0]);
+
           this.mediaRecorder.start()
           this.mediaRecorder.ondataavailable = e => this.pushData(e)
           this.mediaRecorder.onstop = () => this.onStop()
@@ -221,8 +249,8 @@ export default {
 
     },
     async getUserList(){
-      const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}`);
-      console.log('getUserList: ', data);
+      // const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}`);
+      // this.userList = data;
     },
     screenShare () {
       try {
@@ -243,7 +271,20 @@ export default {
     },
     joinedRoom (streamId) {
       // this.addTrack(streamId)
-      console.log(streamId)
+        console.log('usersList: ', streamId);
+        const newNode = document.createElement("p");
+
+        newNode.setAttribute('class', 'user-video');
+        const textNode = document.createTextNode(streamId);
+        newNode.appendChild(textNode);
+        console.log('newNode: ', newNode);
+
+       
+        setTimeout(function(){
+          const list = document.getElementById(streamId);
+          list.after(newNode, list.children[0]);
+        }, 1000)
+        
     },
     shareStarted (streamId) {
       console.log(streamId)
@@ -352,5 +393,12 @@ export default {
 img {
   height: 80px;
   width: 100%;
+}
+.user-video {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: #fff;
+  font-size: 18px;
 }
 </style>
