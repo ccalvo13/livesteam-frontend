@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div data-app id="app">
    
     <Adsense
       data-ad-client="ca-pub-7023023584987784"
@@ -14,19 +14,54 @@
               </label>
               <input v-model="roomId" placeholder="Enter room ID" id="room-input" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"/>
             </div> -->
-        <div class="video-container"> 
-          <vue-webrtc id="call-canvas" :roomId="roomId" ref="webrtc" v-on:share-started="shareStarted"  class="w-full video-webrtc" v-on:share-stopped="leftRoom" v-on:left-room="leftRoom" v-on:joined-room="joinedRoom" width="100%"/>
+            <div class="video-container"> 
+              <vue-webrtc id="call-canvas" :roomId="roomId" ref="webrtc" v-on:share-started="shareStarted"  class="w-full video-webrtc" v-on:share-stopped="leftRoom" v-on:left-room="leftRoom" v-on:joined-room="joinedRoom" width="100%"/>
+            </div>
+            <div class="video-webrtc-controls" v-if="hasJoined">
+              <!-- <button type="button" @click="copyClipboard" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Share Meeting</button> -->
+              
+              <v-btn @click="onHandleVideoOn" class="mx-2 bg-primary" size="x-large"><v-icon>{{videoOn ?  'mdi-video-outline': 'mdi-video-off-outline' }} </v-icon></v-btn>
+              <v-btn @click="onHandleMicOn" class="mx-2 bg-primary" size="x-large"><v-icon>{{micOn ?  'mdi-microphone': 'mdi-microphone-off' }} </v-icon></v-btn>
+              <!-- <v-btn @click="screenShare" class="mx-2" size="x-large">Screen Share</v-btn> -->
+              <v-btn @click="toggleRoom" class="mx-2 bg-red" size="x-large" ><v-icon>mdi-phone-hangup</v-icon></v-btn>
+              <v-dialog v-model="dialog" width="auto">
+                <v-card>
+                  <v-card-title class="text-h5">
+                    End the call or just leave?
+                  </v-card-title>
+                  <v-card-text>You can just leave the call if you don't want to end it for everyone else</v-card-text>
+                  <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="meetingRoomEnd()" style="margin-right: 15px">
+                      Just leave the call
+                    </v-btn>
+                    <v-btn variant="text" @click="meetingRoomEndForEveryone()">
+                      End the call for everyone
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+               <v-snackbar
+                v-model="snackbar"
+                :timeout=3000
+              >
+                {{ textUserStatus }}
+
+                <template v-slot:actions>
+                  <v-btn
+                    color="blue"
+                    variant="text"
+                    @click="snackbar = false"
+                  >
+                    Close
+                  </v-btn>
+                </template>
+              </v-snackbar>
+            </div>
+          </form>
+
         </div>
-          <div class="video-webrtc-controls" v-if="hasJoined">
-            <!-- <button type="button" @click="copyClipboard" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Share Meeting</button> -->
-            
-            <v-btn @click="onHandleVideoOn" class="mx-2 bg-primary" size="x-large"><v-icon>{{videoOn ?  'mdi-video-outline': 'mdi-video-off-outline' }} </v-icon></v-btn>
-            <v-btn @click="onHandleMicOn" class="mx-2 bg-primary" size="x-large"><v-icon>{{micOn ?  'mdi-microphone': 'mdi-microphone-off' }} </v-icon></v-btn>
-            <!-- <v-btn @click="screenShare" class="mx-2" size="x-large">Screen Share</v-btn> -->
-            <v-btn @click="toggleRoom" class="mx-2 bg-red" size="x-large" ><v-icon>mdi-phone-hangup</v-icon></v-btn>
-          </div>
-        </form>
-      </div>
+ 
     </div>
 
 
@@ -56,28 +91,27 @@ export default {
       audioContext: null,
       videoContainer: null,
       stream: null,
+      dialog: false,
+      snackbar: false,
+      isHost: '',
+      streamId: '',
+      textUserStatus: 'User Join',
+      isRecording: false,
+      mediaStream: null,
     }
   },
   mounted () {
-    // socket.on('usersList', ({ users }) => {
-    //   console.log('usersList: ', users);
-    //   const newNode = document.createElement("p");
-      
-    //   newNode.setAttribute('class', 'user-video');
-    //   const textNode = document.createTextNode(users);
-    //   newNode.appendChild(textNode);
+    socket.on('deleteUser', ({ sessionId }) => {
+      this.snackbar = true;
+      this.textUserStatus = `User ( ${sessionId} ) has left the meeting room.`;
+    });
 
-    //   const list = document.getElementById(users);
-    //   list.after(newNode, list.children[0]);
-    // });
-
-    // socket.on('join', ({ sessionId }) => {
-    //   console.log('This user has join the meeting room:  ', sessionId);
-    //    console.log('usersList: ', sessionId);
-    // });
+    socket.on('join', ({ sessionId }) => {
+      this.snackbar = true;
+      this.textUserStatus = `User ( ${sessionId} ) has join the meeting room.`;
+    });
 
     socket.on('talking', ({ sessionId, isTalking }) => {
-      console.log('isTalking: ', isTalking, sessionId);
         this.videoContainer  = document.querySelector(`.video-item video[id='${sessionId}']`);
         
         // styling for video border: when user is talking
@@ -99,43 +133,58 @@ export default {
   },
   created(){
     this.audioContext = new (window.AudioContext)();
-    console.log('created isTalking: ');
-    // socket.on('talking', ({ sessionId, isTalking }) => {
-    //   console.log('isTalking: ', isTalking, sessionId);
-    // });
+     window.addEventListener('beforeunload', function(event) {
+      console.log('event onload create: ', event);
+        event.returnValue = 'Write something'
+    })
   },
   methods: {
-    async onStop () {
-      // var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
-      // this.chunks = [];
-      // const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
-    
-      // console.log('data 1: ', file);
-      // let formdata = new FormData();
-      // formdata.append('fileName', `${this.roomId}`)
-      // formdata.append('file', file)
+    async onStop (streamId) {
+      console.log('streamId: ', streamId);
+    },
+    async onDownloadLocal(){
+      this.$refs.webrtc.leave()
+      this.hasJoined = false
+      this.stopListening();
+      // this.mediaRecorder.stop();
+       if (this.mediaRecorder && this.isRecording) {
+        this.mediaRecorder.stop();
 
-      // const { data } = await axios.post( 'https://livestream-backend-ng53ixt7xq-as.a.run.app/files', formdata);
-      // console.log('data: ', data, formdata);
+        if (this.mediaStream) {
+          this.mediaStream.getTracks().forEach((track) => track.stop());
+        }
 
+        this.isRecording = false;
+      }
+      await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app//users/list/${this.roomId}/${this.userStream.id}`);
+      socket.emit('usersList', { roomId: this.roomId });
+      
+      var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
+      this.chunks = [];
+      const file = new File ([blob], `${this.roomId}.webm`, { 'type' : 'video/webm' })
+          // TODO: add link to redirect after end call
+
+      var a = document.createElement("a"),
+              url = URL.createObjectURL(file);
+          a.href = url;
+          a.download = 'meeting.webm';
+          document.body.appendChild(a);
+          a.click()
     },
     pushData (e) {
       this.chunks.push(e.data);
     },
     record () {
       this.mediaRecorder.start()
+      
     },
     onHandleVideoOn () {
       this.videoOn = !this.videoOn;
-      // this.userStream = this.$refs.webrtc.videoList[0].stream
       this.userStream.video = this.videoOn
-      console.log('this.userStream: ', this.userStream);
       this.userStream.getVideoTracks()[0].enabled = this.videoOn;
     },
     onHandleMicOn () {
       this.micOn = !this.micOn;
-      console.log('this.micOn: ', this.micOn);
-      // this.userStream = this.$refs.webrtc.videoList[0].stream
       this.userStream.audio = this.micOn
       this.userStream.getAudioTracks()[0].enabled = this.micOn;
       if(this.micOn){
@@ -195,7 +244,6 @@ export default {
            if (volume > threshold && this.videoContainer) {
               this.videoContainer.style.border =  'thick solid #FF6B35';
               socket.emit('talking', { isTalking: true, sessionId: streamingId });
-              console.log('streamingId: ', streamingId);
             } else {
               if(this.videoContainer){
                 this.videoContainer.style.border =  'none';
@@ -212,15 +260,15 @@ export default {
     },
     async toggleRoom () {
       try {
+        
         if(this.hasJoined) {
-          this.$refs.webrtc.leave()
-          this.hasJoined = false
-          this.stopListening();
-          this.mediaRecorder.stop();
-          await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app//users/list/${this.roomId}/${this.userStream.id}`);
-          socket.emit('usersList', { roomId: this.roomId });
-          
-          // TODO: add link to redirect after end call
+        const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/${this.userStream.id}`);
+        console.log('data: ', data);
+          if(data.data.isHost){
+            this.dialog = true;
+          } else {
+            this.onDownloadLocal()
+          }
         } else {
           await this.$refs.webrtc.join()
           this.userStream = this.$refs.webrtc.videoList[0].stream
@@ -228,19 +276,34 @@ export default {
           socket.emit('join', { roomId: this.roomId, sessionId: this.userStream.id });
           this.startListening(this.userStream.id);
           this.getUserList();
-          this.mediaRecorder = new MediaRecorder(this.userStream)
-          
-          const newNode = document.createElement("p");
-          newNode.setAttribute('class', 'user-video');
-          const textNode = document.createTextNode(this.userStream.id);
-          newNode.appendChild(textNode);
+          // chrome.tabCapture.capture({ video: true, audio: true }, (stream) => {
+          //   // Use the captured stream for recording or displaying in your application.
+          // });
+          // Capture the entire screen
+          this.mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { mediaSource: 'screen' }, audio: true, preferCurrentTab:true  });
+          this.mediaRecorder = new MediaRecorder(this.mediaStream);
 
-          const list = document.getElementById(this.userStream.id);
-          list.after(newNode, list.children[0]);
+          const recordedChunks = [];
 
-          this.mediaRecorder.start()
-          this.mediaRecorder.ondataavailable = e => this.pushData(e)
-          this.mediaRecorder.onstop = () => this.onStop()
+          this.mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              recordedChunks.push(event.data);
+              this.pushData(event);
+            }
+          };
+
+          this.mediaRecorder.onstop = () => {
+            const recordedBlob = new Blob(recordedChunks, { type: 'video/webm' });
+            // this.onStop(this.userStream.id)
+            const recordedVideo = this.$refs.recordedVideo;
+            recordedVideo.src = URL.createObjectURL(recordedBlob);
+            recordedVideo.controls = true;
+          };
+
+          this.mediaRecorder.start();
+          this.isRecording = true;
+            // this.mediaRecorder.ondataavailable = e => this.pushData(e)
+            // this.mediaRecorder.onstop = () => this.onStop(this.userStream.id)
           this.hasJoined = true
         }
       } catch (e) {
@@ -271,19 +334,20 @@ export default {
     },
     joinedRoom (streamId) {
       // this.addTrack(streamId)
-        console.log('usersList: ', streamId);
-        const newNode = document.createElement("p");
+      // document.querySelectorAll(`.video-item:not(:nth-child(1))`).forEach(el => {
+      //     el.style.width = "30vw";
+      //     el.style.height = "22vh";
+      // });
+      const newNode = document.createElement("p");
 
-        newNode.setAttribute('class', 'user-video');
-        const textNode = document.createTextNode(streamId);
-        newNode.appendChild(textNode);
-        console.log('newNode: ', newNode);
+      newNode.setAttribute('class', 'user-video');
+      const textNode = document.createTextNode(streamId);
+      newNode.appendChild(textNode);
 
-       
-        setTimeout(function(){
-          const list = document.getElementById(streamId);
-          list.after(newNode, list.children[0]);
-        }, 1000)
+      setTimeout(function(){
+        const list = document.getElementById(streamId);
+        list.after(newNode, list.children[0]);
+      }, 1000)
         
     },
     shareStarted (streamId) {
@@ -301,7 +365,7 @@ export default {
     },
     async share () {
       const baseUrl = window.location.origin
-    const shareData = {
+      const shareData = {
         title: 'Vere-ai',
         text: 'Join my meeting!',
         url: `${baseUrl}/#${this.roomId}`
@@ -311,8 +375,18 @@ export default {
       } catch(err) {
       this.copyClipboard()
       }
-    }
-  }
+    },
+    async meetingRoomEndForEveryone() {
+      const { data } = await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}/${this.streamId}`);
+      console.log('this.streamId}: ', this.streamId);
+      console.log('meetingRoomEndForEveryone: ', data);
+      this.onDownloadLocal()
+    },
+    async meetingRoomEnd() {
+      const { data } = await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}`);
+      console.log('meetingRoomEnd: ', data);
+      this.onDownloadLocal()
+    },}
 }
 </script>
 
