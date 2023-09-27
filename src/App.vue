@@ -101,9 +101,12 @@ export default {
     }
   },
   mounted () {
-    socket.on('deleteUser', ({ sessionId }) => {
-      this.snackbar = true;
-      this.textUserStatus = `User ( ${sessionId} ) has left the meeting room.`;
+    socket.on('deleteUser', ({ roomId, sessionId }) => {
+      if(this.roomId === roomId){
+        this.snackbar = true;
+        this.textUserStatus = `User ( ${sessionId} ) has left the meeting room.`;  
+      }
+      
     });
 
     socket.on('join', ({ sessionId }) => {
