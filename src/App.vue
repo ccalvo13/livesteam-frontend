@@ -294,7 +294,7 @@ export default {
 
           this.mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
-              console.log('data recordedChunks: ', recordedChunks, event);
+            console.log('event: ', event, recordedChunks);
 
               recordedChunks.push(event.data);
               this.pushData(event);
@@ -309,28 +309,11 @@ export default {
             recordedVideo.controls = true;
           };
 
-          this.mediaRecorder.start();
+          this.mediaRecorder.start(5000);
           this.isRecording = true;
             // this.mediaRecorder.ondataavailable = e => this.pushData(e)
             // this.mediaRecorder.onstop = () => this.onStop(this.userStream.id)
           this.hasJoined = true
-
-
-          // Set an interval to stop recording and process the chunks
-          const intervalId = setInterval(() => {
-            if (this.mediaRecorder.state === 'recording') {
-              this.mediaRecorder.stop(); // Stop recording
-              this.mediaRecorder.start(); // Resume recording
-
-              // Process the recorded chunks here if needed
-            }
-          }, 5000); // Capture data every 5 seconds (adjust as needed)
-
-          // Stop the recording after a specified duration (e.g., 30 seconds)
-          setTimeout(() => {
-            clearInterval(intervalId); // Clear the interval
-            this.mediaRecorder.stop(); // Stop recording
-          }, 30000); // Stop recording after 30 seconds (adjust as needed)
         }
       } catch (e) {
         alert(e)
