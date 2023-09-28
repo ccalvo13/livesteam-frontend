@@ -109,9 +109,11 @@ export default {
       
     });
 
-    socket.on('join', ({ sessionId }) => {
-      this.snackbar = true;
-      this.textUserStatus = `User ( ${sessionId} ) has join the meeting room.`;
+    socket.on('join', ({ roomId, sessionId }) => {
+      if(this.roomId === roomId){
+        this.snackbar = true;
+        this.textUserStatus = `User ( ${sessionId} ) has join the meeting room.`;
+      }
     });
 
     socket.on('talking', ({ sessionId, isTalking }) => {
@@ -159,8 +161,9 @@ export default {
 
         this.isRecording = false;
       }
-      await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app//users/list/${this.roomId}/${this.userStream.id}`);
+      await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}/${this.userStream.id}`);
       socket.emit('usersList', { roomId: this.roomId });
+      socket.emit('deleteUser', { roomId: this.roomId, sessionId: this.userStream.id });
       
       var blob = new Blob(this.chunks, { 'type' : 'video/webm' }); // other types are available such as 'video/webm' for instance, see the doc for more info
       this.chunks = [];
@@ -265,8 +268,8 @@ export default {
       try {
         
         if(this.hasJoined) {
-        const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/${this.userStream.id}`);
-        console.log('data: ', data);
+          const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/${this.userStream.id}`);
+          console.log('data: ', data);
           if(data.data.isHost){
             this.dialog = true;
           } else {
@@ -279,10 +282,11 @@ export default {
           socket.emit('join', { roomId: this.roomId, sessionId: this.userStream.id });
           this.startListening(this.userStream.id);
           this.getUserList();
-          // chrome.tabCapture.capture({ video: true, audio: true }, (stream) => {
-          //   // Use the captured stream for recording or displaying in your application.
-          // });
+         
           // Capture the entire screen
+          const { data } = await axios.get( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/${this.userStream.id}`);
+          console.log('data isHost: ', data, this.userStream.id);
+        
           this.mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { mediaSource: 'screen' }, audio: true, preferCurrentTab:true  });
           this.mediaRecorder = new MediaRecorder(this.mediaStream);
 
@@ -290,6 +294,8 @@ export default {
 
           this.mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
+              console.log('data recordedChunks: ', recordedChunks, event);
+
               recordedChunks.push(event.data);
               this.pushData(event);
             }
@@ -308,6 +314,23 @@ export default {
             // this.mediaRecorder.ondataavailable = e => this.pushData(e)
             // this.mediaRecorder.onstop = () => this.onStop(this.userStream.id)
           this.hasJoined = true
+
+
+          // Set an interval to stop recording and process the chunks
+          const intervalId = setInterval(() => {
+            if (this.mediaRecorder.state === 'recording') {
+              this.mediaRecorder.stop(); // Stop recording
+              this.mediaRecorder.start(); // Resume recording
+
+              // Process the recorded chunks here if needed
+            }
+          }, 5000); // Capture data every 5 seconds (adjust as needed)
+
+          // Stop the recording after a specified duration (e.g., 30 seconds)
+          setTimeout(() => {
+            clearInterval(intervalId); // Clear the interval
+            this.mediaRecorder.stop(); // Stop recording
+          }, 30000); // Stop recording after 30 seconds (adjust as needed)
         }
       } catch (e) {
         alert(e)
@@ -381,12 +404,14 @@ export default {
     },
     async meetingRoomEndForEveryone() {
       const { data } = await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}/${this.streamId}`);
+      socket.emit('deleteUser', { roomId: this.roomId, sessionId: this.userStream.id });
       console.log('this.streamId}: ', this.streamId);
       console.log('meetingRoomEndForEveryone: ', data);
       this.onDownloadLocal()
     },
     async meetingRoomEnd() {
       const { data } = await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}`);
+      socket.emit('deleteUser', { roomId: this.roomId, sessionId: this.userStream.id });
       console.log('meetingRoomEnd: ', data);
       this.onDownloadLocal()
     },}
