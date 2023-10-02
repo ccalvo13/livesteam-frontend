@@ -162,6 +162,7 @@ export default {
         this.isRecording = false;
       }
       await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}/${this.userStream.id}`);
+      await axios.post( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/files`, {fileName: this.roomId});
       socket.emit('usersList', { roomId: this.roomId });
       socket.emit('deleteUser', { roomId: this.roomId, sessionId: this.userStream.id });
       
@@ -294,8 +295,7 @@ export default {
 
           this.mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
-            console.log('event: ', event, recordedChunks);
-
+              socket.emit('record', {roomId: this.roomId, data: event.data});
               recordedChunks.push(event.data);
               this.pushData(event);
             }
