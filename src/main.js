@@ -1,20 +1,20 @@
-import Vue from 'vue'
+import { createApp } from 'vue'
 import App from './App.vue'
-import WebRTC from 'vue-webrtc'
-import Ads from 'vue-google-adsense'
-import './index.css'
-import vuetify from './plugins/vuetify'
-import Vuetify from 'vuetify'
+
+// Vuetify
+import 'vuetify/styles'
+import { createVuetify } from 'vuetify'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+
+// import createVuetify from './plugins/vuetify'
 import 'vuetify/dist/vuetify.min.css'
-import "@mdi/font/css/materialdesignicons.css";
-Vue.use(require('vue-script2'))
+import '@mdi/font/css/materialdesignicons.css'
+import 'material-design-icons-iconfont/dist/material-design-icons.css'
 
-Vue.use(Vuetify)
-Vue.use(Ads.Adsense)
-Vue.use(WebRTC)
-Vue.config.productionTip = false
+const vuetify = createVuetify({
+    components,
+    directives,
+})
 
-new Vue({
-  vuetify,
-  render: h => h(App)
-}).$mount('#app')
+createApp(App).use(vuetify).mount('#app')

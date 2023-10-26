@@ -1,8 +1,8 @@
-import Vue from 'vue';
-import Vuetify from 'vuetify/lib/framework';
 import '@mdi/font/css/materialdesignicons.css'
+import 'material-design-icons-iconfont/dist/material-design-icons.css'
 
-Vue.use(Vuetify);
+import { createVuetify } from 'vuetify'
+
 const myCustomLightTheme = {
     dark: false,
     colors: {
@@ -18,7 +18,7 @@ const myCustomLightTheme = {
       warning: '#FB8C00',
     },
   }
-export default new Vuetify({
+export default createVuetify({
     theme: {
         defaultTheme: 'myCustomLightTheme',
         themes: {

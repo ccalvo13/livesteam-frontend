@@ -1,46 +1,48 @@
-// Plugins
+import { fileURLToPath, URL } from 'node:url'
+const path = require('path');
+
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
-// Utilities
-import { defineConfig } from 'vite'
-import { fileURLToPath, URL } from 'node:url'
 import federation from '@originjs/vite-plugin-federation'
-
-const APPLICATION_PORT = 8081;
 
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
-    port: APPLICATION_PORT,
-  },
-  preview: {
-    port: APPLICATION_PORT,
+    port: 8081,
   },
   build: {
-    target: 'esnext'
+    target: 'esnext',
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'public', 'index.html'),
+      },
+    },
   },
   plugins: [
-    vue({ 
-      template: { transformAssetUrls }
-    }),
+    vue(
+      {
+        template: {transformAssetUrls}
+      }
+    ),
     // https://github.com/vuetifyjs/vuetify-loader/tree/next/packages/vite-plugin
     vuetify({
       autoImport: true,
-      styles: {
-        configFile: 'src/styles/settings.scss',
-      },
+    //   styles: {
+    //     configFile: 'src/styles/settings.scss',
+    //   },
     }),
     federation({
-      name: "chatvideo-widget",
-      filename: "chatvideoWidget.js",
+      name: "livestream",
+      filename: "livestreamApp.js",
       exposes: {
         "./App": "./src/App.vue",
       },
       shared: ["vue"],
     }),
   ],
-  define: { 'process.env': {} },
+  define: { 'process.env': {}},
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
