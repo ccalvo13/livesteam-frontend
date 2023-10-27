@@ -158,7 +158,7 @@
                     this.isRecording = false;
                 }
                 await axios.delete( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/list/${this.roomId}/${this.userStream.id}`);
-                await axios.post( `https://livestream-backend-ng53ixt7xq-as.a.run.app/users/files`, {fileName: this.roomId});
+                await axios.post( `https://livestream-backend-ng53ixt7xq-as.a.run.app/files`, {fileName: this.roomId});
                 socket.emit('usersList', { roomId: this.roomId });
                 socket.emit('deleteUser', { roomId: this.roomId, sessionId: this.userStream.id });
             
