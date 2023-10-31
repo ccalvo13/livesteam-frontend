@@ -42,7 +42,7 @@ export default defineConfig({
       },
       shared: ["vue"],
     }),
-    polyfillNode({ buffer: true })
+    polyfillNode({ Buffer: true })
   ],
   define: { 'process.env': {}},
   resolve: {
