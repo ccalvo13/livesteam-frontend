@@ -37,7 +37,7 @@ export default defineConfig({
       name: "livestream",
       filename: "livestreamApp.js",
       exposes: {
-        "./App": "./src/App.vue",
+        "./VideoChat": "./src/components/VideoChat.vue",
       },
       shared: ["vue"],
     }),
