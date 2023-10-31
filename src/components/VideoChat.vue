@@ -130,7 +130,7 @@
             if(hash != '') {
             this.roomId = hash.substring(1)
             this.toggleRoom()
-            }
+            } 
         },
         created(){
             this.audioContext = new (window.AudioContext)();
