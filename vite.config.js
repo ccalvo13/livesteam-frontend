@@ -6,6 +6,7 @@ import vue from '@vitejs/plugin-vue'
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 import federation from '@originjs/vite-plugin-federation'
+import { polyfillNode } from "esbuild-plugin-polyfill-node";
 
 // https://vitejs.dev/config/
 export default defineConfig({
