@@ -40,7 +40,7 @@ export default defineConfig({
       exposes: {
         "./App": "./src/App.vue",
       },
-      shared: ["vue"],
+      shared: ["vue", "axios", "buffer", "material-design-icons-iconfont", "socket.io", "socket.io-client", "vue-webrtc", "vuetify"],
     }),
     polyfillNode({ Buffer: true })
   ],
