@@ -38,9 +38,9 @@ export default defineConfig({
       name: "livestream",
       filename: "livestreamApp.js",
       exposes: {
-        "./VideoChat": "./src/components/VideoChat.vue",
+        "./App": "./src/App.vue",
       },
-      shared: ["vue"],
+      shared: ["vue", "vue-webrtc", "axios", "socket.io-client"],
     }),
     polyfillNode({ Buffer: true })
   ],
