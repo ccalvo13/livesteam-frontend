@@ -44,7 +44,10 @@ export default defineConfig({
     }),
     polyfillNode({ Buffer: true })
   ],
-  define: { 'process.env': {}},
+  define: {
+    'process.env': {},
+    global: 'globalThis'
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
