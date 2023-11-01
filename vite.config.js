@@ -40,7 +40,7 @@ export default defineConfig({
       exposes: {
         "./App": "./src/App.vue",
       },
-      shared: ["vue", "vue-webrtc", "axios", "socket.io-client", "@originjs/vite-plugin-federation"],
+      shared: ["vue", "vue-webrtc", "axios", "socket.io-client"],
     }),
     polyfillNode({ Buffer: true })
   ],
