@@ -62,5 +62,8 @@ export default defineConfig({
       '.tsx',
       '.vue',
     ],
-  }
+  },
+  dependencies: {
+    buffer: "^6.0.3",
+  },
 })
