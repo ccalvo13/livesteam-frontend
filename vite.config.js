@@ -40,7 +40,7 @@ export default defineConfig({
       exposes: {
         "./App": "./src/App.vue",
       },
-      shared: ["vue"],
+      shared: ["vue", "axios", "buffer", "material-design-icons-iconfont", "socket.io", "socket.io-client", "vue-webrtc", "vuetify"],
     }),
     polyfillNode({ buffer: true, process: true })
   ],
@@ -51,6 +51,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      "socket.io-client": "socket.io-client/dist/socket.io.js",
     },
     extensions: [
       '.js',
