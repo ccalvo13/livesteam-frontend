@@ -42,7 +42,7 @@ export default defineConfig({
       },
       shared: ["vue", "axios", "buffer", "material-design-icons-iconfont", "socket.io", "socket.io-client", "vue-webrtc", "vuetify"],
     }),
-    polyfillNode({ Buffer: true })
+    polyfillNode({ buffer: true, process: true })
   ],
   define: {
     'process.env': {},
